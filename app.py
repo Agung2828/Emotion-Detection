@@ -4,18 +4,24 @@ import pandas as pd
 import cv2
 from keras.models import load_model
 from PIL import Image
-import time
+import os
+import gdown
 
-# Load model
-model = load_model("model_ekspresi.h5")
+# Unduh model jika belum ada
+model_path = "model_ekspresi.h5"
+if not os.path.exists(model_path):
+    with st.spinner("Mengunduh model..."):
+        url = "https://drive.google.com/uc?id=YOUR_FILE_ID"
+        gdown.download(url, model_path, quiet=False)
+
+# Load model dan label
+model = load_model(model_path)
 labels = ['marah', 'jijik', 'takut', 'senang', 'sedih', 'kaget', 'netral']
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
 # UI
 st.title("😊 Deteksi Ekspresi Wajah")
-mode = st.radio("Pilih metode input:", ["📂 Upload Gambar", "📷 Kamera Real-Time"])
-
-FRAME_WINDOW = st.empty()
+mode = st.radio("Pilih metode input:", ["📂 Upload Gambar"])
 
 def proses_gambar(image_np):
     gray = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
@@ -43,6 +49,7 @@ def proses_gambar(image_np):
 
     return image_np, ekspresi_counter
 
+# Upload gambar
 if mode == "📂 Upload Gambar":
     uploaded_file = st.file_uploader("Upload gambar wajah", type=["jpg", "jpeg", "png"])
     if uploaded_file:
@@ -55,23 +62,3 @@ if mode == "📂 Upload Gambar":
             st.subheader("📊 Diagram Ekspresi Terdeteksi")
             df = pd.DataFrame.from_dict(ekspresi_counter, orient='index', columns=['Jumlah'])
             st.bar_chart(df)
-
-elif mode == "📷 Kamera Real-Time":
-    start = st.checkbox("🎬 Aktifkan Kamera")
-
-    if start:
-        cap = cv2.VideoCapture(0)
-
-        while start:
-            ret, frame = cap.read()
-            if not ret:
-                st.warning("Tidak bisa membaca kamera.")
-                break
-
-            frame = cv2.flip(frame, 1)
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            hasil, ekspresi_counter = proses_gambar(frame_rgb)
-            FRAME_WINDOW.image(hasil, channels="RGB")
-
-        cap.release()
-        cv2.destroyAllWindows()
